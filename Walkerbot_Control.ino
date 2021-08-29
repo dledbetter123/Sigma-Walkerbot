@@ -1,10 +1,13 @@
+
+
 #include <Servo.h>
 #include <tuple>
 #include <map>
+//#include <MemoryFree.h>
 // Name: Walkerbot_Control
 // Author: David Ledbetter
 // Date Created: 8/24/2021
-// Last Edit: 8/26/2021 11:29 PM
+// Last Edit: 8/27/2021 2:58 PM
 //
 // I've created classes that allow simultaneous servo control
 // and continuous motor movement to a state rather than
@@ -63,16 +66,16 @@ void Smart_Servo::move_(byte dest) {
   if (dest > current_value) {
     for (byte i = current_value; i < dest; i += 1) {
       ser.write(i);
-      current_value = i;
     }
   }
   // executes for left side motors increasing and right side motors decreasing
   if (dest < current_value) {
     for (byte i = current_value; i > dest; i -= 1) {
       ser.write(i);
-      current_value = i;
     }
   }
+  
+  current_value = dest;
 
 }
 
@@ -82,24 +85,15 @@ void Smart_Servo::arraymove_(byte dest) {
 
   dest = Destination(dest);
 
-  // executes for right side motors increasing and left side motors decreasing
-  if (dest > current_value) {
-    for (byte i = current_value; i < dest; i += 1) {
-      ser.write(i);
-      current_value = i;
-    }
-  }
-  // executes for left side motors increasing and right side motors decreasing
-  if (dest < current_value) {
-    for (byte i = current_value; i > dest; i -= 1) {
-      ser.write(i);
-      current_value = i;
-    }
-  }
+  ser.write(dest);
+  current_value = dest;
 
 }
 
-byte Smart_Servo::value() {
+byte Smart_Servo::value() {  
+  if (nom[2] == 'L') {
+    return 180 - current_value;
+  }
   return current_value;
 }
 
@@ -118,6 +112,7 @@ class Servo_Array {
     Servo_Array(Smart_Servo** servos);
     void add_Servo(Smart_Servo s);
     void move_(move_tuple* move_list, byte number_of_moves);
+    ~Servo_Array();
 };
 
 Servo_Array::Servo_Array(Smart_Servo** servos) {
@@ -136,26 +131,49 @@ Servo_Array::Servo_Array(Smart_Servo** servos) {
 }
 
 void Servo_Array::move_(move_tuple* move_list, byte number_of_moves) {
-  byte largest_change = 0;
-  Serial.print("Move Started");
-  Serial.println(largest_change);
+  short largest_change = 0;
+  Serial.println("Move Started");
   for (byte i = 0; i < number_of_moves; i++) {
-    byte temp1 = get<1>(move_list[i]);
+    Serial.println(servo_map[get<0>(move_list[i])]->value());
+    short temp1 = abs(servo_map[get<0>(move_list[i])]->value() - get<1>(move_list[i])) * get<2>(move_list[i]);
+    Serial.print("largest change for servo ");
+    Serial.print(i);
+    Serial.print(" ");
+    Serial.println(temp1);
     if (temp1 > largest_change) {
       largest_change = temp1;
     }
   }
   Serial.println(largest_change);
-
+  Serial.println("move loop running");
   for (byte i = 0; i < largest_change; i += 1) {
     for (unsigned int j = 0; j < number_of_moves; j++) {
-      byte dest = get<1>(move_list[j]);
+      short dest = get<1>(move_list[j]) * get<2>(move_list[j]);
       int i_sub = (i >= dest) ? dest : i;
-      servo_map[get<0>(move_list[j])]->move_(i_sub);
+      if (j == 5 && i < 10){
+//        Serial.print("Servo 5 to: ");
+//        Serial.println(i_sub/get<2>(move_list[j]));
+      }
+      if (j == 2 && i < 10){
+//        Serial.print("Servo 2 to: ");
+//        Serial.println(i_sub/get<2>(move_list[j]));
+      }
+      servo_map[get<0>(move_list[j])]->arraymove_(i_sub/get<2>(move_list[j]));
     }
-    delay(20);
+//    if (i < 10)
+//      Serial.println("All Servos stepped");
+    delay(5);
   }
+  Serial.println("Move complete");
 }
+
+//Servo_Array::~Servo_Array(){
+//  for(std::map<char*, Smart_Servo*>::iterator itr = servo_map.begin(); itr != servo_map.end(); itr++)
+//  {
+//      delete (itr->second);
+//  }
+//  servo_map.clear();
+//}
 Servo servoFIL;
 Servo servoFOL;
 Servo servoFIR;
@@ -173,7 +191,6 @@ Smart_Servo *RIL;
 Smart_Servo *ROR;
 Smart_Servo *RIR;
 
-int i = 0;
 // Sets Walkerbot to default position_
 void Zero() {
 
@@ -190,6 +207,8 @@ void Zero() {
 
 void setup() {
   Serial.begin(9600);
+  Serial.print("Size of: ");
+  Serial.println(sizeof(FOL));
   servoFOL.attach(0);
   servoFIL.attach(1);
   servoROL.attach(2);
@@ -218,13 +237,33 @@ void setup() {
   servos[7] = RIR;
   Servo_Array* ServoArray = new Servo_Array(servos);
   Serial.println("Servo Array Made");
-  move_tuple move1[] = {move_tuple("FOL", 30, 0), move_tuple("FIL", 30, 0),
-                        move_tuple("FOR", 30, 0), move_tuple("FIR", 30, 0),
-                        move_tuple("ROL", 100, 0), move_tuple("RIL", 100, 0),
-                        move_tuple("ROR", 100, 0), move_tuple("RIR", 100, 0)};
-  
+  move_tuple move1[] = {move_tuple("FOL", 30, 1), move_tuple("FIL", 30, 1),
+                        move_tuple("FOR", 30, 1), move_tuple("FIR", 30, 1),
+                        move_tuple("ROL", 100, 2), move_tuple("RIL", 100, 2),
+                        move_tuple("ROR", 100, 2), move_tuple("RIR", 100, 2)};
+                        
+//  move_tuple move1[] = {move_tuple("ROL", 10, 1), move_tuple("RIL", 1, 1),
+//                        move_tuple("ROR", 10, 1), move_tuple("RIR", 1, 1)};
+//
+  move_tuple move2[] = {move_tuple("FOL", 0, 3), move_tuple("FIL", 0, 3),
+                        move_tuple("FOR", 0, 3), move_tuple("FIR", 0, 3)};
+
+  move_tuple move3[] = {move_tuple("FOL", 50, 3), move_tuple("FIL", 50, 3),
+                        move_tuple("FOR", 50, 3), move_tuple("FIR", 50, 3)};
+
+//  move_tuple move2[] = {move_tuple("FOL", 50, 3), move_tuple("FIL", 50, 3),
+//                        move_tuple("FOR", 50, 3), move_tuple("FIR", 50, 3)};
+//                       
   Serial.println("Tuples Array Made");
   ServoArray->move_(move1, 8);
+  Serial.println(sizeof(FOL));
+  Serial.println("move 2 started");
+  ServoArray->move_(move2, 4);
+  Serial.println("move 3 started");
+  ServoArray->move_(move3, 4);
+//  delete[] move1;
+//  Serial.println("move done");
+//  ServoArray->move_(move2, 4);
 //  Zero();
 //  ServoArray->move_(move1, 8);
 //  Zero();
@@ -237,7 +276,7 @@ void setup() {
 }
 
 void loop() {
-  delay(1000);
+//  delay(1000);
   //  for (i = 0; i < 50; i+=3) {
   //    servoFIL.write(i);
   //    servoFOL.write(i);
