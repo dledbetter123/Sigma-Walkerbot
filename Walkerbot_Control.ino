@@ -7,7 +7,7 @@
 // Name: Walkerbot_Control
 // Author: David Ledbetter
 // Date Created: 8/24/2021
-// Last Edit: 8/27/2021 2:58 PM
+// Last Edit: 8/28/2021 7:58 PM
 //
 // I've created classes that allow simultaneous servo control
 // and continuous motor movement to a state rather than
