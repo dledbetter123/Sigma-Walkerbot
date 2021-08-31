@@ -1,2 +1,2 @@
 # Sigma-Walkerbot
-Python RNN and Arduino Serial communication for walking robot
+Python DQN and Arduino Serial communication for walking robot
